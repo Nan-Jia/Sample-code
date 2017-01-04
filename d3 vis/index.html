@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Area Performance</title>
+        <script type="text/javascript" src="d3/d3.v3.js"></script>
+        <script type="text/javascript" src="areaPerformanceMatrixPlot.js"></script>
+
+        <link rel="stylesheet" href="style.css">
+
+
+    </head>
+    <body>
+        <div id="graph"></div>
+
+        <script type="text/javascript">
+          // Creates (d3) svg plot of performance + S.D. for different brain regions
+          // and different signal types for subject J.
+
+            var areaPerformances;
+            dataFile = "data/areaAccuracies.json";
+            d3.json(dataFile, function(error, data){
+
+              if (error){
+                console.log(error);
+              }else{
+                console.log(dataFile + " loaded.");
+                console.log(data);
+                areaPerformances = data;
+               for (i=1;i<2;i++){
+                 areaPerformanceMatrixPlot();
+               }
+              }
+            });
+
+        </script>
+    </body>
+</html>
