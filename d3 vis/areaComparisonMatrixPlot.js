@@ -1,136 +1,196 @@
-
-function plotAreaPerformanceMatrix (){
-
-  //SVG boundary parameters
-  var w = 1000,
-    h = 300,
-    borderWidth = 10,
-    borderColor = "black";
+function areaPerformanceMatrixPlot(){
+  // Creates area performance comparison plots using a tiled layout, with
+  // outter tile color-encoding S.D. of performance, and center tile
+  // color-encoding mean of performance.
 
 
-  // Grid layout parameters
+  // Define size of squares to determine plot size and boundaries
 
-  var cols = 10, // number of columns
-    rows = 3, // number of rows
-    a    = 20, //  edge length
-    r    = 85,//Math.floor(Math.min(w/cols, h/rows)) - a,
-    edgeWidth = 10;
+  var r = 30,   // width of each tile/rectangle
+      border = 4+Math.floor(r/10),  // border length between each tiles
+      cols = areaPerformances.signalLabels.length,    // number of columns
+      rows = areaPerformances.areaLabels.length;     // number of rows
 
+  var colW = 80;     // colorbar svg element width
+  var plotSD = true;
 
-  // create SVG element for visualization
-  var vis = d3.select("#graph").append("svg")
-    .attr("width",w)
-    .attr("height",h);
+// var dummyElement_n = 27;
+  // plot size and boundaries
 
-  // // draw border of SVG element
-  // var borderPath = vis.append("rect")
-  //                     .attr("x",0)
-  //                     .attr("y",0)
-  //                     .attr("height",h)
-  //                     .attr("width",w)
-  //                     .style("stroke", borderColor)
-  //                     .style("fill","none")
-  //                     .style("stroke-width", borderWidth);
+  var margin ={top:40, right: 20, bottom:100, left: 100};
+  var width =  (r+border) * cols + border, // width of tile plot
+      height =  (r+border) * rows + border , // height of tile plot
+      w = width + margin.left + margin.right + colW,  // width of svg
+      h = height + margin.top + margin.bottom;        // width of svg
 
 
-  var dummyVar = [[1,2,3,4,5,6,7,8,9,10],
-    [11,12,13,14,15,16,17,18,19,20],
-    [21,22,23,24,25,26,27,28,29,30]];
-
-
-
-
-  // Creating scales and axis
-
-  var color = d3.scale.linear()
-                      .domain([0,1])
+  // Create scales and axis
+  var color4Mean = d3.scale.linear()
+                      .domain([0,d3.max(d3.merge(areaPerformances.Jonah.respEpochLOOCV_mean))])
                       .interpolate(d3.interpolateHsl)
                       .range(["hsl(62,100%,90%)", "hsl(222,30%,20%)"]);
+  var color4SD = d3.scale.linear()
+                      .domain([d3.min(d3.merge(areaPerformances.Jonah.respEpochLOOCV_std)),d3.max(d3.merge(areaPerformances.Jonah.respEpochLOOCV_std))])
+                      .interpolate(d3.interpolateRgb)
+                      .range(['#f6faaa','#9E0142']);
+
 
   var xScale = d3.scale.ordinal()
-                  .domain([0,1,2,3,4,5,6,7,8,9])
-                  .rangeRoundBands([0, w],.1);
+                  .domain(d3.range(cols))
+                  .rangeRoundBands([0, width],.1);
+
   var yScale = d3.scale.ordinal()
-                  .domain([0,1,2])
-                  .rangeRoundBands([0, h]);
+                  .domain(d3.range(rows))
+                  .rangeRoundBands([0, height],.1);
 
   var xAxis = d3.svg.axis()
                 .scale(xScale)
-                .orient("bottom");
- var yAxis = d3.svg.axis()
+                .orient("bottom")
+                .tickFormat(function(d,i){ return areaPerformances.signalLabels[i];}) // hide tick labels
+                .tickSize(5,0); // hide outter ticks in d3
+
+  var yAxis = d3.svg.axis()
                 .scale(yScale)
-                .orient("left");
+                .orient("left")
+                .tickFormat(function(d,i){ return areaPerformances.areaLabels[i];})
+                .tickSize(5,0);
 
 
+  var vis = d3.select("#graph").append("svg")
+              .attr("width", w)
+              .attr("height", h);
 
- // Plot one square per element
-  var squares = vis.selectAll("rect")
-    .data(d3.merge(dummyVar))
+  var tiles = vis.append("g")
+              .attr("id","tiles")
+              .attr("transform","translate(" + margin.left + "," + margin.top + ")");
+
+// Append axes to graph
+
+  tiles.append("g")
+    .attr("class","axis")
+    .attr("transform", "translate(-1.5," + (height -1.5) + ")")
+    .call(xAxis)
+    .selectAll("text")
+      .style("text-anchor","end")
+      .attr("dx","-.8em")
+      .attr("dy",".15em")
+      .attr("transform", function(d) { return "rotate(-65)";});
+
+  tiles.append("g")
+    .attr("class","axis")
+    .attr("transform","translate(" + (xScale(0) - border) + ",0)")
+    .call(yAxis);
+
+  tiles.append("g")
+    .attr("class", "tile title")
+    .attr("transform","translate(" + xScale(Math.floor(cols/2)) + ",-5)")
+    .append("text")
+    .text("Monkey J")
+    .style("text-anchor","start");
+
+
+  // Plot one tile per element
+
+ tiles.selectAll("rect")
+   .data(d3.merge(areaPerformances.Jonah.respEpochLOOCV_mean))
+   .enter()
+   .append("rect")
+   .attr("x", function(d,i) { return xScale(i % cols); })
+   .attr("y", function(d,i) { return yScale(Math.floor(i/cols)); })
+   .attr("width", r)
+   .attr("height", r)
+   .attr("fill", function(d,i){ return color4Mean(d);})
+   .attr("stroke-width",function(d){ if(plotSD) {return 3;} else{return 0;}})
+   .attr("stroke", function(d,i){ return color4SD(d3.merge(areaPerformances.Jonah.respEpochLOOCV_std)[i]); });
+
+// plot colorbars
+  var colorBarScale4Mean = d3.scale.linear()
+                      .domain([height,0])
+                      .interpolate(d3.interpolateHsl)
+                      .range(["hsl(62,100%,90%)", "hsl(222,30%,20%)"]);
+
+
+ var tempScale4Mean = d3.scale.linear().domain([d3.max(d3.merge(areaPerformances.Jonah.respEpochLOOCV_mean)),0])
+                  .rangeRound([0, height]);
+
+  var colorAxis4Mean = d3.svg.axis()
+                .scale(tempScale4Mean)
+                .ticks(5)
+                .tickSize(3,3)
+                .orient("right");
+
+  var colorBar4Mean = vis.append("g")
+                    .attr("id","colorBar")
+                    .attr("transform","translate(" + (w - colW -10) + "," + margin.top + ")");
+
+
+  colorBar4Mean.selectAll("rect")
+    .data(d3.range(0,height+1))
     .enter()
     .append("rect")
-    .attr("x", function(d,i) { return xScale(i % cols); })
-    .attr("y", function(d,i) { return yScale(Math.floor(i/cols)); })
-//    .attr("x", function(d,i) { return borderWidth + parseInt((i % cols)*r); })
-//    .attr("y", function(d,i) { return borderWidth + Math.floor(i / cols)*r; })
-    .attr("width", r)
-    .attr("height", r)
-    .attr("stroke-width", edgeWidth)
-    .attr("fill", function(d,i){
-      return color(Math.random());
-    });
+    .attr("x", 0)
+    .attr("y",function(d,i){ return  i;})
+    .attr("width", r/2)
+    .attr("height",2)
+    .attr("fill", function(d,i){ return colorBarScale4Mean(i); });
 
-// put in text
-vis.selectAll("text")
-       .data(d3.merge(dummyVar))
-       .enter()
-       .append("text")
-       .text(function(d){ return d;})
-       .attr( "text-anchor","middle" )
-       .attr("x", function(d,i) { return xScale(i % cols);})
-       .attr("y", function(d,i) { return 20+yScale(Math.floor(i/cols)); })
-       .attr("font-family","sans-serif")
-       .attr("font-size","20px")
-       .attr("fill","black");
+// colorbar axis for mean
+  colorBar4Mean.append("g")
+    .attr("class","c axis")
+    .attr("transform","translate(" + (r/2) +  ",0)")
+    .call(colorAxis4Mean)
+    .append("text")
+    .attr("x",height/2)
+    .attr("y",-20)
+    .attr("transform", "rotate(90)")
+    .style("text-anchor","middle")
+    .text("Mean")
+
+//colorbar axis for S.D
+
+if (plotSD){
+    var colorBarScale4SD = d3.scale.linear()
+                        .domain([height,0])
+                        .interpolate(d3.interpolateRgb)
+                        .range(['#f6faaa','#9E0142']);
 
 
+    var tempScale4SD = d3.scale.linear().domain([d3.max(d3.merge(areaPerformances.Jonah.respEpochLOOCV_std)),0])
+                    .rangeRound([0, height]);
+
+    var colorAxis4SD = d3.svg.axis()
+                  .scale(tempScale4SD)
+                  .ticks(5)
+                  .tickSize(3,3)
+                  .orient("right");
+
+    var colorBar4SD = vis.append("g")
+                      .attr("id","colorBar")
+                      .attr("transform","translate(" + (w - colW/2 ) + "," + margin.top + ")");
 
 
-// plot colorbar
+    colorBar4SD.selectAll("rect")
+        .data(d3.range(0,height+1))
+        .enter()
+        .append("rect")
+        .attr("x", 0)
+        .attr("y",function(d,i){ return  i;})
+        .attr("width", r/2)
+        .attr("height",2)
+        .attr("fill", function(d,i){ return colorBarScale4SD(i); });
 
-colWidth = 100;
-colHeight = 300;
- var colorBar = d3.scale.linear()
-                     .domain([0,colHeight])
-                     .interpolate(d3.interpolateHsl)
-                     .range(["hsl(62,100%,90%)", "hsl(222,30%,20%)"]);
-
-var colBar= d3.select("#graph").append("canvas")
-              .attr("width", 1)
-              .attr("height", colHeight)
-              .style("width", colWidth + "px")
-              .style("height", colHeight + "px")
-              .each(render);
-
-function render(d) {
-  // example from http://bl.ocks.org/mbostock/3014589
-  var context = this.getContext("2d"),
-      image = context.createImageData(1,colHeight);
-
-  for (var i = 0, j = -1,c; i < colHeight; ++i){
-    c=d3.rgb(colorBar(i));
-    image.data[++j] = c.r;
-    image.data[++j] = c.g;
-    image.data[++j] = c.b;
-    image.data[++j] = 255;
+    // colorbar axis for S.D.
+    colorBar4SD.append("g")
+        .attr("class","c axis")
+        .attr("transform","translate(" + (r/2) +  ",0)")
+        .call(colorAxis4SD)
+        .append("text")
+        .attr("x",height/2)
+        .attr("y",-15)
+        .attr("transform", "rotate(90)")
+        .style("text-anchor","middle")
+        .text("S.D.");
   }
-  context.putImageData(image,0,0);
-}
-vis.append("g")
-    .attr("class","axis")
-    .attr("transform","translate(0," + (h - 20) + ")")
-    .call(xAxis);
-
-vis.append("g").attr("class","axis")
-    .call(yAxis)
 
 }
+
